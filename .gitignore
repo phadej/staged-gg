@@ -1,0 +1,6 @@
+dist/
+dist-newstyle/
+.ghc.environment.*
+*.project.local
+*.agdai
+dump-core
