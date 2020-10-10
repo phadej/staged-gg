@@ -28,7 +28,7 @@ import Generics.Deriving.TH
 -- th-lift
 import Language.Haskell.TH.Lift ()
 
-import qualified Data.Map as Map (empty, fromList)
+import qualified Data.Map as Map (fromList)
 
 -- | Derive 'Staged.GHC.Generics.Generic' using Template Haskell.
 deriveGeneric :: Name -> Q [Dec]
@@ -451,9 +451,9 @@ toFieldWrap Gen0   nr t = conP (boxRepName t) [varP nr]
 toFieldWrap Gen1{} nr _ = varP nr
 
 unwC :: Type -> Bool -> Name -> Name -> Q Exp
-unwC (SigT t _) inPar name nr             = unwC t inPar name nr
-unwC (VarT t)   inPar name nr | t == name = varE unPar2ValName `appE` varE nr
-unwC t          inPar name nr
+unwC (SigT t _)  inPar name nr             = unwC t inPar name nr
+unwC (VarT t)   _inPar name nr | t == name = varE unPar2ValName `appE` varE nr
+unwC t           inPar name nr
   | ground t name = varE (unboxRepName t) `appE` varE nr
   | otherwise = do
       let tyHead:tyArgs      = unapplyTy t
@@ -507,8 +507,8 @@ mkFrom kont gClass ecOptions m i dt instTys cs = do
     (_, gk) = genericKind gClass instTys
 
 errorFrom :: EmptyCaseOptions -> Name -> [ExpQ]
-errorFrom useEmptyCase dt = []
-{-
+errorFrom _useEmptyCase _dt = []
+{- TODO:
   | useEmptyCase && ghc7'8OrLater
   = []
   | otherwise
@@ -566,8 +566,8 @@ fromCon kont gk wrap m i
 newNameList' :: String -> Int -> Q [(Name, String)]
 newNameList' prefix n = forM [1..n] $ \i -> do
     let s = prefix ++ show i
-    n <- newName s
-    return (n, s)
+    n' <- newName s
+    return (n', s)
 
 prodE :: Q Exp -> Q Exp -> Q Exp
 prodE x y = conE staged_productDataName `appE` x `appE` y
@@ -613,7 +613,7 @@ wC t        name nr
 
 errorTo :: EmptyCaseOptions -> Name -> [Q Match]
 errorTo useEmptyCase dt
-  | useEmptyCase && ghc7'8OrLater
+  | useEmptyCase
   = []
   | otherwise
   = [do z <- newName "z"
@@ -640,11 +640,3 @@ lrE i n e
   | i <= div n 2 = conE l2DataName `appE` lrE i     (div n 2) e
   | otherwise    = conE r2DataName `appE` lrE (i-m) (n-m)     e
                      where m = div n 2
-
-ghc7'8OrLater :: Bool
-#if __GLASGOW_HASKELL__ >= 708
-ghc7'8OrLater = True
-#else
-ghc7'8OrLater = False
-#endif
-
