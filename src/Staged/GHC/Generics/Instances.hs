@@ -68,31 +68,31 @@ deriveGeneric ''(,,)
 deriveGeneric ''(,,,)
 deriveGeneric ''(,,,,)           -- 5
 deriveGeneric ''(,,,,,)
-deriveGeneric ''(,,,,,,)
-deriveGeneric ''(,,,,,,,)
-deriveGeneric ''(,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,)      -- 10
-deriveGeneric ''(,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,) -- 15
-deriveGeneric ''(,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,) -- 20
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,) -- 25
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
-deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,,,) -- 30
-deriveGeneric ''[]
+-- deriveGeneric ''(,,,,,,)
+-- deriveGeneric ''(,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,)      -- 10
+-- deriveGeneric ''(,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,) -- 15
+-- deriveGeneric ''(,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,) -- 20
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,) -- 25
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
+-- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,,,) -- 30
+-- deriveGeneric ''[]
 
 deriveGeneric1 ''Maybe
 deriveGeneric1 ''Either
