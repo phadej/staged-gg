@@ -12,8 +12,8 @@ tested-with:   GHC ==9.0.1
 
 source-repository head
   type:     git
-  location: https://github.com/phadej/staged.git
-  subdir:   staged-gg
+  location: https://github.com/phadej/staged-gg.git
+  subdir:   staged-gg-examples
 
 library
   default-language: Haskell2010

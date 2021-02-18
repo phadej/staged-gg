@@ -3,7 +3,12 @@ name:          staged-gg
 version:       0.1
 synopsis:      GHC.Generics style staged generics
 category:      Staged, Generics
-description:   GHC.Generics style staged generics...
+description:
+  GHC.Generics style staged generics.
+  .
+  See https://github.com/phadej/staged-gg/tree/master/staged-gg-examples
+  for examples.
+
 author:        Oleg Grenrus, Andres Löh
 maintainer:    Oleg Grenrus <oleg.grenrus@iki.fi>
 license:       BSD-3-Clause
@@ -13,7 +18,6 @@ tested-with:   GHC ==9.0.1
 source-repository head
   type:     git
   location: https://github.com/phadej/staged.git
-  subdir:   staged-gg
 
 library
   default-language: Haskell2010

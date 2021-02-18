@@ -11,7 +11,8 @@
 --
 -- == Examples
 --
--- See "Staged.GHC.Generics.Examples" module for examples.
+-- See https://github.com/phadej/staged-gg/tree/master/staged-gg-examples
+-- for examples
 --
 -- == Differences from "GHC.Generics"
 --
