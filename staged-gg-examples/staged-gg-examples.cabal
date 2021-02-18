@@ -1,9 +1,9 @@
 cabal-version: 2.2
-name:          staged-gg
+name:          staged-gg-examples
 version:       0.1
-synopsis:      GHC.Generics style staged generics
+synopsis:      GHC.Generics style staged generics examples
 category:      Staged, Generics
-description:   GHC.Generics style staged generics...
+description:   GHC.Generics style staged generics examples...
 author:        Oleg Grenrus, Andres Löh
 maintainer:    Oleg Grenrus <oleg.grenrus@iki.fi>
 license:       BSD-3-Clause
@@ -23,23 +23,14 @@ library
   -- ghc-boot dependencies
   build-depends:
     , base              ^>=4.15
-    , containers        ^>=0.6.4.1
-    , template-haskell  ^>=2.17.0.0
 
+  -- staged-gg
   build-depends:
-    , generic-deriving  ^>=1.14
-    , th-abstraction    ^>=0.4.2.0
-    , th-lift           ^>=0.8.2
+    , staged-gg
 
   -- staged generics
   exposed-modules:
-    Staged.GHC.Generics
-    Staged.GHC.Generics.Instances
-    Staged.GHC.Generics.TH
-    Staged.GHC.Generics.Types
-
-  other-modules:
-    Generics.Deriving.TH.Internal
-    Generics.Deriving.TH.Post4_9
-    Staged.GHC.Generics.Internal
-    Staged.GHC.Generics.TH.Names
+    Staged.GHC.Generics.Examples
+    Staged.GHC.Generics.Examples.Foo
+    Staged.GHC.Generics.Examples.Functor
+    Staged.GHC.Generics.Examples.Monoid

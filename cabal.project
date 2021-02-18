@@ -1,2 +1,3 @@
 packages: .
+packages: staged-gg-examples
 with-compiler: ghc-9.0.1
