@@ -5,7 +5,7 @@
 --
 -- See https://www.andres-loeh.de/StagedSOP/ paper for description of
 -- @staged-sop@, which is staged version of @generics-sop@.
--- The non generics-sop specific parts
+-- The non @generics-sop@ specific parts
 -- like sections on Typed Template Haskell, and Type Template Haskell and Constraints,
 -- are applicable to @staged-gg@ as well.
 --
