@@ -23,13 +23,13 @@ library
   -- ghc-boot dependencies
   build-depends:
     , base              ^>=4.15
-    , containers        ^>=0.6.0.1
-    , template-haskell  ^>=2.17
+    , containers        ^>=0.6.4.1
+    , template-haskell  ^>=2.17.0.0
 
   build-depends:
     , generic-deriving  ^>=1.14
-    , th-abstraction    ^>=0.4
-    , th-lift           ^>=0.8.1
+    , th-abstraction    ^>=0.4.2.0
+    , th-lift           ^>=0.8.2
 
   -- staged generics
   exposed-modules:

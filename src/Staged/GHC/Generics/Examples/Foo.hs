@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies    #-}
 {-# LANGUAGE TypeOperators   #-}
-{-# OPTIONS_GHC -ddump-splices -dsuppress-module-prefixes #-}
+-- {-# OPTIONS_GHC -ddump-splices -dsuppress-module-prefixes #-}
 module Staged.GHC.Generics.Examples.Foo where
 
 import qualified GHC.Generics as GHC

@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-# OPTIONS_GHC -Wall -Wno-orphans#-}
-{-# OPTIONS_GHC -ddump-splices #-}
+-- {-# OPTIONS_GHC -ddump-splices #-}
 
 -- | Examples of using @staged-gg@. Click the source links, to see the source!
 module Staged.GHC.Generics.Examples (
