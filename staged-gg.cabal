@@ -13,8 +13,9 @@ description:
   are applicable to @staged-gg@ as well.
   .
   This package is an /EXPERIMENTAL/ proof-of-concept.
-  In a way it is unusable, because of current GHC Typed Template Haskell
-  limitations.
+  It works if you do not do anything fancy.
+  Because of current GHC Typed Template Haskell limitations,
+  quite simple things are "fancy".
   See https://github.com/phadej/staged-gg/tree/master/staged-gg-examples
   for examples what you can do regardless.
 

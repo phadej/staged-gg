@@ -31,8 +31,7 @@ import           Language.Haskell.TH.Ppr (pprint)
 import           Language.Haskell.TH.Syntax
 
 #ifndef CURRENT_PACKAGE_KEY
-import           Data.Version (showVersion)
-import           Paths_generic_deriving (version)
+#error "No CURRENT_PACKAGE_KEY
 #endif
 
 -------------------------------------------------------------------------------
@@ -516,11 +515,7 @@ elimTV _ptv ktv (KindedTV n k) = ktv n k
 -- This allows the library to be used in stage1 cross-compilers.
 
 gdPackageKey :: String
-#ifdef CURRENT_PACKAGE_KEY
 gdPackageKey = CURRENT_PACKAGE_KEY
-#else
-gdPackageKey = "generic-deriving-" ++ showVersion version
-#endif
 
 mkGD4'4_d :: String -> Name
 #if MIN_VERSION_base(4,6,0)
