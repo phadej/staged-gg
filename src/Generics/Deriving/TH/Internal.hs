@@ -26,12 +26,14 @@ import qualified Data.Set as Set
 import           Data.Set (Set)
 
 import           Language.Haskell.TH.Datatype
+import           Language.Haskell.TH.Datatype.TyVarBndr
 import           Language.Haskell.TH.Lib
 import           Language.Haskell.TH.Ppr (pprint)
 import           Language.Haskell.TH.Syntax
 
 #ifndef CURRENT_PACKAGE_KEY
-#error "No CURRENT_PACKAGE_KEY
+import           Data.Version (showVersion)
+import           Paths_generic_deriving (version)
 #endif
 
 -------------------------------------------------------------------------------
@@ -142,38 +144,63 @@ makeFunKind = makeFunType
 makeFunKind argKinds resKind = foldr' ArrowK resKind argKinds
 #endif
 
--- | Is the given type a type family constructor (and not a data family constructor)?
-isTyFamily :: Type -> Q Bool
-isTyFamily (ConT n) = do
-    info <- reify n
-    return $ case info of
+-- | Detect if a Name occurs as an argument to some type family. This makes an
+-- effort to exclude /oversaturated/ arguments to type families. For instance,
+-- if one declared the following type family:
+--
+-- @
+-- type family F a :: Type -> Type
+-- @
+--
+-- Then in the type @F a b@, we would consider @a@ to be an argument to @F@,
+-- but not @b@.
+isInTypeFamilyApp :: Name -> Type -> [Type] -> Q Bool
+isInTypeFamilyApp name tyFun tyArgs =
+  case tyFun of
+    ConT tcName -> go tcName
+    _           -> return False
+  where
+    go :: Name -> Q Bool
+    go tcName = do
+      info <- reify tcName
+      case info of
 #if MIN_VERSION_template_haskell(2,11,0)
-         FamilyI OpenTypeFamilyD{} _       -> True
+        FamilyI (OpenTypeFamilyD (TypeFamilyHead _ bndrs _ _)) _
+          -> withinFirstArgs bndrs
 #elif MIN_VERSION_template_haskell(2,7,0)
-         FamilyI (FamilyD TypeFam _ _ _) _ -> True
+        FamilyI (FamilyD TypeFam _ bndrs _) _
+          -> withinFirstArgs bndrs
 #else
-         TyConI  (FamilyD TypeFam _ _ _)   -> True
+        TyConI (FamilyD TypeFam _ bndrs _)
+          -> withinFirstArgs bndrs
 #endif
-#if MIN_VERSION_template_haskell(2,9,0)
-         FamilyI ClosedTypeFamilyD{} _     -> True
+
+#if MIN_VERSION_template_haskell(2,11,0)
+        FamilyI (ClosedTypeFamilyD (TypeFamilyHead _ bndrs _ _) _) _
+          -> withinFirstArgs bndrs
+#elif MIN_VERSION_template_haskell(2,9,0)
+        FamilyI (ClosedTypeFamilyD _ bndrs _ _) _
+          -> withinFirstArgs bndrs
 #endif
-         _ -> False
-isTyFamily _ = return False
+
+        _ -> return False
+      where
+        withinFirstArgs :: [a] -> Q Bool
+        withinFirstArgs bndrs =
+          let firstArgs = take (length bndrs) tyArgs
+              argFVs    = freeVariables firstArgs
+          in return $ name `elem` argFVs
 
 -- | True if the type does not mention the Name
 ground :: Type -> Name -> Bool
-ground (AppT t1 t2) name = ground t1 name && ground t2 name
-ground (SigT t _)   name = ground t name
-ground (VarT t)     name = t /= name
-ground ForallT{}    _    = rankNError
-ground _            _    = True
+ground ty name = name `notElem` freeVariables ty
 
 -- | Construct a type via curried application.
 applyTyToTys :: Type -> [Type] -> Type
 applyTyToTys = foldl' AppT
 
 -- | Apply a type constructor name to type variable binders.
-applyTyToTvbs :: Name -> [TyVarBndr_ spec] -> Type
+applyTyToTvbs :: Name -> [TyVarBndr_ flag] -> Type
 applyTyToTvbs = foldl' (\a -> AppT a . tyVarBndrToType) . ConT
 
 -- | Split an applied type into its individual components. For example, this:
@@ -187,14 +214,17 @@ applyTyToTvbs = foldl' (\a -> AppT a . tyVarBndrToType) . ConT
 -- @
 -- [Either, Int, Char]
 -- @
-unapplyTy :: Type -> [Type]
-unapplyTy = reverse . go
+unapplyTy :: Type -> (Type, [Type])
+unapplyTy ty = go ty ty []
   where
-    go :: Type -> [Type]
-    go (AppT t1 t2)    = t2 : go t1
-    go (SigT t _)      = go t
-    go (ForallT _ _ t) = go t
-    go t               = [t]
+    go :: Type -> Type -> [Type] -> (Type, [Type])
+    go _      (AppT ty1 ty2)     args = go ty1 ty1 (ty2:args)
+    go origTy (SigT ty' _)       args = go origTy ty' args
+#if MIN_VERSION_template_haskell(2,11,0)
+    go origTy (InfixT ty1 n ty2) args = go origTy (ConT n `AppT` ty1 `AppT` ty2) args
+    go origTy (ParensT ty')      args = go origTy ty' args
+#endif
+    go origTy _                  args = (origTy, args)
 
 -- | Split a type signature by the arrows on its spine. For example, this:
 --
@@ -228,7 +258,7 @@ uncurryKind (ArrowK k1 k2) =
 uncurryKind k = ([], [k])
 #endif
 
-tyVarBndrToType :: TyVarBndr_ spec -> Type
+tyVarBndrToType :: TyVarBndr_ flag -> Type
 tyVarBndrToType = elimTV VarT (\n k -> SigT (VarT n) k)
 
 -- | Generate a list of fresh names with a common prefix, and numbered suffixes.
@@ -383,7 +413,6 @@ data DatatypeVariant_
   | Newtype_
   | DataInstance_    ConstructorInfo
   | NewtypeInstance_ ConstructorInfo
-  deriving Show
 
 showsDatatypeVariant :: DatatypeVariant_ -> ShowS
 showsDatatypeVariant variant = (++ '_':label)
@@ -435,9 +464,13 @@ derivingKindError tyConName = fail
   . showString "‘\n\tClass Generic1 expects an argument of kind * -> *"
   $ ""
 
+-- | The data type mentions the last type variable in a place other
+-- than the last position of a data type in a constructor's field.
 outOfPlaceTyVarError :: Q a
 outOfPlaceTyVarError = fail
-    "Type applied to an argument involving the last parameter is not of kind * -> *"
+  . showString "Constructor must only use its last type variable as"
+  . showString " the last argument of a data type"
+  $ ""
 
 -- | Cannot have a constructor argument of form (forall a1 ... an. <type>)
 -- when deriving Generic(1)
@@ -489,23 +522,6 @@ checkExistentialContext conName vars ctxt =
   unless (null vars && null ctxt) $ fail $
     nameBase conName ++ " must be a vanilla data constructor"
 
-#if MIN_VERSION_template_haskell(2,17,0)
-type TyVarBndr_ spec = TyVarBndr spec
-#else
-type TyVarBndr_ spec = TyVarBndr
-type TyVarBndrSpec   = TyVarBndr
-type TyVarBndrUnit   = TyVarBndr
-#endif
-
-elimTV :: (Name -> r) -> (Name -> Kind -> r) -> TyVarBndr_ spec -> r
-#if MIN_VERSION_template_haskell(2,17,0)
-elimTV ptv _ktv (PlainTV n _)    = ptv n
-elimTV _ptv ktv (KindedTV n _ k) = ktv n k
-#else
-elimTV ptv _ktv (PlainTV n)    = ptv n
-elimTV _ptv ktv (KindedTV n k) = ktv n k
-#endif
-
 -------------------------------------------------------------------------------
 -- Manually quoted names
 -------------------------------------------------------------------------------
@@ -515,7 +531,11 @@ elimTV _ptv ktv (KindedTV n k) = ktv n k
 -- This allows the library to be used in stage1 cross-compilers.
 
 gdPackageKey :: String
+#ifdef CURRENT_PACKAGE_KEY
 gdPackageKey = CURRENT_PACKAGE_KEY
+#else
+gdPackageKey = "generic-deriving-" ++ showVersion version
+#endif
 
 mkGD4'4_d :: String -> Name
 #if MIN_VERSION_base(4,6,0)
@@ -831,9 +851,6 @@ fmapValName = mkNameG_v "base" "GHC.Base" "fmap"
 
 undefinedValName :: Name
 undefinedValName = mkNameG_v "base" "GHC.Err" "undefined"
-
-starKindName :: Name
-starKindName = mkGHCPrimName_tc "GHC.Prim" "*"
 
 decidedLazyDataName :: Name
 decidedLazyDataName = mkGD4'9_d "DecidedLazy"
