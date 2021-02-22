@@ -530,12 +530,10 @@ checkExistentialContext conName vars ctxt =
 -- TemplateHaskell language extension when compiling the generic-deriving library.
 -- This allows the library to be used in stage1 cross-compilers.
 
+-- NB: This is one of the few spots where we change the copy-pasted definition
+-- from generic-deriving slightly to avoid referencing the wrong package.
 gdPackageKey :: String
-#ifdef CURRENT_PACKAGE_KEY
 gdPackageKey = CURRENT_PACKAGE_KEY
-#else
-gdPackageKey = "generic-deriving-" ++ showVersion version
-#endif
 
 mkGD4'4_d :: String -> Name
 #if MIN_VERSION_base(4,6,0)
