@@ -334,7 +334,7 @@ repFieldArg gk inPar (SigT t _) = repFieldArg gk inPar t
 repFieldArg Gen0 _ t = boxT t
 repFieldArg (Gen1 name _) _ (VarT t) | t == name = conT par2TypeName
 repFieldArg gk@(Gen1 name _) inPar t = do
-  let tyHead:tyArgs      = unapplyTy t
+  let (tyHead, tyArgs)   = unapplyTy t
       numLastArgs        = min 1 $ length tyArgs
       (lhsArgs, rhsArgs) = splitAt (length tyArgs - numLastArgs) tyArgs
       k2Type             = boxT t
@@ -354,9 +354,8 @@ repFieldArg gk@(Gen1 name _) inPar t = do
           `appT` repFieldArg gk True beta
       inspectTy _ = k2Type
 
-  itf <- isTyFamily tyHead
-  if any (not . (`ground` name)) lhsArgs
-       || any (not . (`ground` name)) tyArgs && itf
+  itf <- isInTypeFamilyApp name tyHead tyArgs
+  if any (not . (`ground` name)) lhsArgs || itf
      then outOfPlaceTyVarError
      else case rhsArgs of
           []   -> k2Type
@@ -456,7 +455,7 @@ unwC (VarT t)   _inPar name nr | t == name = varE unPar2ValName `appE` varE nr
 unwC t           inPar name nr
   | ground t name = varE (unboxRepName t) `appE` varE nr
   | otherwise = do
-      let tyHead:tyArgs      = unapplyTy t
+      let (tyHead, tyArgs)   = unapplyTy t
           numLastArgs        = min 1 $ length tyArgs
           (lhsArgs, rhsArgs) = splitAt (length tyArgs - numLastArgs) tyArgs
 
@@ -471,9 +470,8 @@ unwC t           inPar name nr
           inspectTy beta
             = varE unPar2ValName `appE` (varE unAppValName `appE` unwC beta True name nr)
 
-      itf <- isTyFamily tyHead
-      if any (not . (`ground` name)) lhsArgs
-           || any (not . (`ground` name)) tyArgs && itf
+      itf <- isInTypeFamilyApp name tyHead tyArgs
+      if any (not . (`ground` name)) lhsArgs || itf
          then outOfPlaceTyVarError
          else case rhsArgs of
               []   -> varE (unboxRepName t) `appE` varE nr
@@ -586,7 +584,7 @@ wC (VarT t) name nr | t == name = conE par2DataName `appE` nr
 wC t        name nr
   | ground t name = conE (boxRepName t) `appE` nr
   | otherwise = do
-      let tyHead:tyArgs      = unapplyTy t
+      let (tyHead, tyArgs)   = unapplyTy t
           numLastArgs        = min 1 $ length tyArgs
           (lhsArgs, rhsArgs) = splitAt (length tyArgs - numLastArgs) tyArgs
 
@@ -599,9 +597,8 @@ wC t        name nr
           inspectTy beta =
               conE appDataName `appE` wC beta name nr
 
-      itf <- isTyFamily tyHead
-      if any (not . (`ground` name)) lhsArgs
-           || any (not . (`ground` name)) tyArgs && itf
+      itf <- isInTypeFamilyApp name tyHead tyArgs
+      if any (not . (`ground` name)) lhsArgs || itf
          then outOfPlaceTyVarError
          else case rhsArgs of
               []   -> conE (boxRepName t) `appE` nr
