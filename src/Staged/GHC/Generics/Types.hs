@@ -57,21 +57,21 @@ import qualified GHC.Generics as GHC
 -- Combinators
 -------------------------------------------------------------------------------
 
-data V2 (q :: Type -> Type) (p :: k)
+data V2 (q :: z) (p :: k)
 
 deriving instance Eq (V2 q p)
 deriving instance Ord (V2 q p)
 deriving instance Show (V2 q p)
 deriving instance Read (V2 q p)
 
-data U2 (q :: Type -> Type) (p :: k) = U2
+data U2 (q :: z) (p :: k) = U2
 
 deriving instance Eq (U2 q p)
 deriving instance Ord (U2 q p)
 deriving instance Show (U2 q p)
 deriving instance Read (U2 q p)
 
-newtype M2 (i :: Type) (c :: Meta) (f :: (Type -> Type) -> k -> Type) (q :: Type -> Type) (p :: k)
+newtype M2 (i :: Type) (c :: Meta) (f :: z -> k -> Type) (q :: z) (p :: k)
     = M2 { unM2 :: f q p }
 
 deriving instance Eq (f q p) => Eq (M2 i c f q p)
@@ -88,7 +88,7 @@ deriving instance Show (q c) => Show (K2 c q p)
 deriving instance Read (q c) => Read (K2 c q p)
 
 infixr 5 :++:
-data ((f :: (Type -> Type) -> k -> Type) :++: (g :: (Type -> Type) -> k -> Type)) (q :: Type -> Type) (p :: k)
+data ((f :: z -> k -> Type) :++: (g :: z -> k -> Type)) (q :: z) (p :: k)
     = L2 (f q p)
     | R2 (g q p)
 
@@ -98,7 +98,7 @@ deriving instance (Show (f q p), Show (g q p)) => Show ((f :++: g) q p)
 deriving instance (Read (f q p), Read (g q p)) => Read ((f :++: g) q p)
 
 infixr 6 :**:
-data ((f :: (Type -> Type) -> k -> Type) :**: (g :: (Type -> Type) -> k -> Type)) (q :: Type -> Type) (p :: k)
+data ((f :: z -> k -> Type) :**: (g :: z -> k -> Type)) (q :: z) (p :: k)
     = f q p :**: g q p
 
 deriving instance (Eq (f q p), Eq (g q p)) => Eq ((f :**: g) q p)
@@ -108,7 +108,7 @@ deriving instance (Read (f q p), Read (g q p)) => Read ((f :**: g) q p)
 
 -- https://gitlab.haskell.org/ghc/ghc/-/issues/15969#note_164233 !!!
 infixl 7 :@@:
-newtype ((f :: (Type -> Type) -> k2 -> Type) :@@: (g :: k1 -> k2)) (q :: Type -> Type) (p :: k1)
+newtype ((f :: z -> k2 -> Type) :@@: (g :: k1 -> k2)) (q :: z) (p :: k1)
     = App2 { unApp2 :: f q (g p) }
 
 deriving instance Eq (f q (g p)) => Eq ((f :@@: g) q p)
@@ -116,7 +116,7 @@ deriving instance Ord (f q (g p)) => Ord ((f :@@: g) q p)
 deriving instance Show (f q (g p)) => Show ((f :@@: g) q p)
 deriving instance Read (f q (g p)) => Read ((f :@@: g) q p)
 
-newtype Par2 (q :: Type -> Type) (p :: Type)
+newtype Par2 (q :: k -> Type) (p :: k)
     = Par2 { unPar2 :: q p }
 
 deriving instance Eq (q p) => Eq (Par2 q p)
