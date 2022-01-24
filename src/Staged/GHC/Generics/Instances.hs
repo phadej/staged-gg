@@ -59,6 +59,7 @@ import Text.Read.Lex
 -- there is manual instance for this
 -- deriveGeneric ''Bool
 
+deriveGeneric ''[]
 deriveGeneric ''Ordering
 deriveGeneric ''Maybe
 deriveGeneric ''Either
@@ -92,7 +93,6 @@ deriveGeneric ''(,,,,,)
 -- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,)
 -- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
 -- deriveGeneric ''(,,,,,,,,,,,,,,,,,,,,,,,,,,,,,) -- 30
--- deriveGeneric ''[]
 
 deriveGeneric1 ''Maybe
 deriveGeneric1 ''Either
