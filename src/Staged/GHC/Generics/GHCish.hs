@@ -13,7 +13,8 @@
 {-# LANGUAGE TypeOperators            #-}
 
 module Staged.GHC.Generics.GHCish
-  ( ghcGenericTo
+  ( GGeneric (..)
+  , ghcGenericTo
   , ghcGenericFrom
   ) where
 
@@ -24,7 +25,7 @@ import Language.Haskell.TH.Syntax (Exp, Match, Name, mkNameG_d, newName, unTypeC
 
 import qualified GHC.Generics as GHC
 
-import Staged.GHC.Generics.Types
+import Staged.GHC.Generics.RepTypes
 
 -- A proxy type for GHC.Generics functions
 data Prox (d :: Meta) (f :: j -> Type) (a :: j) = Prox
@@ -33,9 +34,14 @@ toProx :: forall j (q :: Type -> Type) i (d :: Meta) (f :: (Type -> Type) -> j -
 toProx _ = Prox
 
 -- | Use GHC generics to implement the 'to' method.
-ghcGenericTo :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
-  => Rep a (Code q) x -> Code q a
+ghcGenericTo :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
+  => Translate (GHC.Rep a) (Code q) x -> Code q a
 ghcGenericTo = unsafeCodeCoerce . gto
+
+-- | Use GHC generics to implement the 'from' method.
+ghcGenericFrom :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
+  => Code q a -> (Translate (GHC.Rep a) (Code q) x -> Code q r) -> Code q r
+ghcGenericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
 
 {-
 -- `from` is not the most obvious thing, in general. I found it quite
@@ -60,11 +66,6 @@ instance Generic (MyType a) where
               []
     ]
 -}
-
--- | Use GHC generics to implement the 'from' method.
-ghcGenericFrom :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
-  => Code q a -> (Rep a (Code q) x -> Code q r) -> Code q r
-ghcGenericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
 
 class GGeneric (f :: (Type -> Type) -> Type -> Type) where
   gto :: Quote q => f (Code q) x -> q Exp
@@ -103,16 +104,16 @@ instance (GGenericCon f, GGenericCon g) => GGenericCon (f :++: g) where
 
 type GMakeNames :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
 class GMakeNames (f :: (Type -> Type) -> k -> Type) where
-    makeNames :: Quote q => Int -> q (f (Const Name) x, [Name], Int)
+    makeNames :: Quote q => Int -> q (f (Const Name) x, [Name] -> [Name], Int)
 
 instance (GMakeNames f, GMakeNames g) => GMakeNames (f :**: g) where
     makeNames n = do
         (l, l', m) <- makeNames n
         (r, r', p) <- makeNames m
-        return (l :**: r, l' ++ r', p)
+        return (l :**: r, l' . r', p)
 
 instance GMakeNames U2 where
-    makeNames n = return (U2, [], n)
+    makeNames n = return (U2, id, n)
 
 instance GMakeNames f => GMakeNames (M2 i c f) where
     makeNames n = do
@@ -122,7 +123,7 @@ instance GMakeNames f => GMakeNames (M2 i c f) where
 instance GMakeNames (K2 c) where
     makeNames n = do
         name <- newName ("v" ++ show n)
-        return (K2 (Const name), [name], n + 1)
+        return (K2 (Const name), (name:), n + 1)
 
 instance (Constructor c, GGenericFields f, GMakeNames f) => GGenericCon (C2 c f) where
   gtoCon namer m@(M2 fqp) = gtoFields (conE conN) fqp
@@ -130,7 +131,8 @@ instance (Constructor c, GGenericFields f, GMakeNames f) => GGenericCon (C2 c f)
       conN :: Name
       conN = namer (conName (toProx m))
   gmatchesCon namer k rest = [do
-    (names, names', _) <- makeNames 0
+    (names, namesb', _) <- makeNames 0
+    let names' = namesb' []
     match (conP conN (map varP names')) (normalB . unTypeCode . k . M2 $ grebuild names) []
     ] ++ rest
     where
