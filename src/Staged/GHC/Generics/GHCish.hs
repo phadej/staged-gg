@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE KindSignatures           #-}
 {-# LANGUAGE PolyKinds                #-}
+{-# LANGUAGE RankNTypes               #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TemplateHaskellQuotes    #-}
@@ -18,10 +19,13 @@ module Staged.GHC.Generics.GHCish
   , ghcGenericFrom
   ) where
 
+import Control.Applicative        (liftA2)
 import Data.Functor.Const         (Const (..))
+import Data.Semigroup             (Endo (..), Dual (..))
 import Data.Kind                  (Constraint, Type)
-import Language.Haskell.TH.Lib    (caseE, conE, conP, match, normalB, varE, varP)
+import Language.Haskell.TH.Lib    (caseE, conE, conP, match, normalB, varE, varP, appE)
 import Language.Haskell.TH.Syntax (Exp, Match, Name, mkNameG_d, newName, unTypeCode, unsafeCodeCoerce)
+import Data.Functor.Identity      (Identity (..))
 
 import qualified GHC.Generics as GHC
 
@@ -104,57 +108,80 @@ instance (GGenericCon f, GGenericCon g) => GGenericCon (f :++: g) where
 
 type GMakeNames :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
 class GMakeNames (f :: (Type -> Type) -> k -> Type) where
-    makeNames :: Quote q => Int -> q (f (Const Name) x, [Name] -> [Name], Int)
+    makeNames :: Quote q => Int -> q (f (Const Name) x, Int)
 
 instance (GMakeNames f, GMakeNames g) => GMakeNames (f :**: g) where
     makeNames n = do
-        (l, l', m) <- makeNames n
-        (r, r', p) <- makeNames m
-        return (l :**: r, l' . r', p)
+        (l, m) <- makeNames n
+        (r, p) <- makeNames m
+        return (l :**: r, p)
 
 instance GMakeNames U2 where
-    makeNames n = return (U2, id, n)
+    makeNames n = return (U2, n)
 
 instance GMakeNames f => GMakeNames (M2 i c f) where
     makeNames n = do
-        (x, x', m) <- makeNames n
-        return (M2 x, x', m)
+        (x, m) <- makeNames n
+        return (M2 x, m)
 
 instance GMakeNames (K2 c) where
     makeNames n = do
         name <- newName ("v" ++ show n)
-        return (K2 (Const name), (name:), n + 1)
+        return (K2 (Const name), n + 1)
 
-instance (Constructor c, GGenericFields f, GMakeNames f) => GGenericCon (C2 c f) where
-  gtoCon namer m@(M2 fqp) = gtoFields (conE conN) fqp
+instance (Constructor c, GMakeNames f, GTraversey f) => GGenericCon (C2 c f) where
+  gtoCon namer m@(M2 fqp) = gfoldyl (\f x -> f `appE` unTypeCode x) (conE conN) fqp
     where
       conN :: Name
       conN = namer (conName (toProx m))
   gmatchesCon namer k rest = (do
-    (names, namesb', _) <- makeNames 0
-    let names' = namesb' []
+    (names, _) <- makeNames 0
+    let names' = gfoldyr (\(Const n) r -> n : r) [] names
     match (conP conN (map varP names')) (normalB . unTypeCode . k . M2 $ grebuild names) []
     ) : rest
     where
       conN :: Name
       conN = namer (conName (Prox @_ @c))
 
-class GGenericFields f where
-  gtoFields :: Quote q => q Exp -> f (Code q) x -> q Exp
-  grebuild :: Quote q => f (Const Name) x -> f (Code q) x
+      grebuild :: Quote q => f (Const Name) x -> f (Code q) x
+      grebuild = gfmappy $ \(Const name) -> unsafeCodeCoerce (varE name)
 
-instance GGenericFields f => GGenericFields (S2 c f) where
-  gtoFields c (M2 x) = gtoFields c x
-  grebuild = M2 . grebuild . unM2
+-- | A sort of traversal. The implementation isn't very efficient for general
+-- applicatives, but we're only using Const and Identity, where
+-- fmap is incredibly cheap.
+class GTraversey f where
+  gtraversey :: forall m q s x. Applicative m => (forall z. q z -> m (s z)) -> f q x -> m (f s x)
 
-instance GGenericFields U2 where
-  gtoFields c U2 = c
-  grebuild U2 = U2
+gfoldyMap :: forall f m q x. (GTraversey f, Monoid m) => (forall z. q z -> m) -> f q x -> m
+gfoldyMap f = getConst . gtraversey (Const . f)
 
-instance (GGenericFields f, GGenericFields g) => GGenericFields (f :**: g) where
-  gtoFields c (x :**: y) = gtoFields (gtoFields c x) y
-  grebuild (l :**: r) = grebuild l :**: grebuild r
+gfmappy :: forall f q s x. GTraversey f => (forall z. q z -> s z) -> f q x -> f s x
+gfmappy f = runIdentity . gtraversey (Identity . f)
 
-instance GGenericFields (K2 c) where
-  gtoFields c (K2 x) = [| $c $(unTypeCode x) |]
-  grebuild (K2 (Const a)) = K2 (unsafeCodeCoerce (varE a))
+instance GTraversey f => GTraversey (M2 i c f) where
+  gtraversey f (M2 x) = M2 <$> gtraversey f x
+
+instance (GTraversey f, GTraversey g) => GTraversey (f :++: g) where
+  gtraversey f (L2 x) = L2 <$> gtraversey f x
+  gtraversey f (R2 x) = R2 <$> gtraversey f x
+
+instance (GTraversey f, GTraversey g) => GTraversey (f :**: g) where
+  gtraversey f (x :**: y) = liftA2 (:**:) (gtraversey f x) (gtraversey f y)
+
+instance GTraversey (K2 c) where
+  gtraversey f (K2 c) = K2 <$> f c
+
+instance GTraversey Par2 where
+  gtraversey f (Par2 x) = Par2 <$> f x
+
+instance GTraversey U2 where
+  gtraversey _ U2 = pure U2
+
+instance GTraversey V2 where
+  gtraversey _ x = case x of
+
+gfoldyr :: GTraversey f => (forall z. q z -> r -> r) -> r -> f q x -> r
+gfoldyr f z t = appEndo (gfoldyMap (Endo . f) t) z
+
+gfoldyl :: GTraversey f => (forall z. r -> q z -> r) -> r -> f q x -> r
+gfoldyl f z t = appEndo (getDual (gfoldyMap (Dual . Endo . flip f) t)) z
