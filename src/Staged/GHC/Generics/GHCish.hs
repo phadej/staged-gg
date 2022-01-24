@@ -130,11 +130,11 @@ instance (Constructor c, GGenericFields f, GMakeNames f) => GGenericCon (C2 c f)
     where
       conN :: Name
       conN = namer (conName (toProx m))
-  gmatchesCon namer k rest = [do
+  gmatchesCon namer k rest = (do
     (names, namesb', _) <- makeNames 0
     let names' = namesb' []
     match (conP conN (map varP names')) (normalB . unTypeCode . k . M2 $ grebuild names) []
-    ] ++ rest
+    ) : rest
     where
       conN :: Name
       conN = namer (conName (Prox @_ @c))
