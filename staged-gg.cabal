@@ -52,10 +52,10 @@ library
     Staged.GHC.Generics.TH
     Staged.GHC.Generics.Types
     Staged.GHC.Generics.RepTypes
+    Staged.GHC.Generics.Generic
 
   other-modules:
     Generics.Deriving.TH.Internal
     Generics.Deriving.TH.Post4_9
     Staged.GHC.Generics.Internal
     Staged.GHC.Generics.TH.Names
-    Staged.GHC.Generics.GHCish

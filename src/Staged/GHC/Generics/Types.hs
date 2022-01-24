@@ -12,6 +12,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_HADDOCK --not-home #-}
+
+-- | This module contains the definitions of the 'Generic' and 'Generic1'
+-- classes. Caution: it does /not/ expose the instances! It is intended
+-- primarily for internal use.
 module Staged.GHC.Generics.Types (
     -- * Generic representation types
     V2,
@@ -39,6 +43,7 @@ module Staged.GHC.Generics.Types (
     -- * Generic type classes
     Generic (..),
     Generic1 (..),
+    GRep,
     genericTo,
     genericFrom,
     -- * TH Types
@@ -49,7 +54,7 @@ module Staged.GHC.Generics.Types (
 
 import Data.Kind           (Type)
 import Staged.GHC.Generics.RepTypes
-import Staged.GHC.Generics.GHCish (GGeneric (..), ghcGenericTo, ghcGenericFrom)
+import Staged.GHC.Generics.Generic (GGeneric, genericTo, genericFrom, GRep)
 
 import qualified GHC.Generics as GHC
 
@@ -59,27 +64,17 @@ import qualified GHC.Generics as GHC
 
 class Generic (a :: Type) where
     type Rep a :: (Type -> Type) -> Type -> Type
-    type Rep a = Translate (GHC.Rep a)
+    type Rep a = GRep a
 
     to   :: Quote q => Rep a (Code q) x -> Code q a
-    default to :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
+    default to :: (Rep a ~ GRep a, GHC.Generic a, GGeneric (Rep a), Quote q)
                => Rep a (Code q) x -> Code q a
     to = genericTo
 
     from :: Quote q => Code q a -> (Rep a (Code q) x -> Code q r) -> Code q r
-    default from :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
+    default from :: (Rep a ~ GRep a, GHC.Generic a, GGeneric (Rep a), Quote q)
       => Code q a -> (Rep a (Code q) x -> Code q r) -> Code q r
     from = genericFrom
-
--- | Use GHC generics to implement the 'to' method.
-genericTo :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
-  => Rep a (Code q) x -> Code q a
-genericTo = ghcGenericTo
-
--- | Use GHC generics to implement the 'from' method.
-genericFrom :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
-  => Code q a -> (Rep a (Code q) x -> Code q r) -> Code q r
-genericFrom = ghcGenericFrom
 
 class Generic1 (f :: k -> Type) where
     type Rep1 f :: (Type -> Type) -> k -> Type

@@ -13,10 +13,14 @@
 {-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE TypeOperators            #-}
 
-module Staged.GHC.Generics.GHCish
-  ( GGeneric (..)
-  , ghcGenericTo
-  , ghcGenericFrom
+-- | This module offers facilities for producing 'Staged.GHC.Generics.Generic'
+-- representations and methods based on the corresponding
+-- @"GHC.Generic".'GHC.Generics.Generic'@ ones.
+module Staged.GHC.Generics.Generic
+  ( GGeneric
+  , GRep
+  , genericTo
+  , genericFrom
   ) where
 
 import Control.Applicative        (liftA2)
@@ -37,15 +41,19 @@ toProx :: forall j (q :: Type -> Type) i (d :: Meta) (f :: (Type -> Type) -> j -
   M2 i d f q a -> Prox d (f q) a
 toProx _ = Prox
 
--- | Use GHC generics to implement the 'to' method.
-ghcGenericTo :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
-  => Translate (GHC.Rep a) (Code q) x -> Code q a
-ghcGenericTo = unsafeCodeCoerce . gto
+-- | Use GHC generics to implement the 'Staged.GHC.Generics.Rep'
+-- associated type.
+type GRep a = Translate (GHC.Rep a)
 
--- | Use GHC generics to implement the 'from' method.
-ghcGenericFrom :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
+-- | Use GHC generics to implement the 'Staged.GHC.Generics.to' method.
+genericTo :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
+  => Translate (GHC.Rep a) (Code q) x -> Code q a
+genericTo = unsafeCodeCoerce . gto
+
+-- | Use GHC generics to implement the 'Staged.GHC.Generics.from' method.
+genericFrom :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
   => Code q a -> (Translate (GHC.Rep a) (Code q) x -> Code q r) -> Code q r
-ghcGenericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
+genericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
 
 {-
 -- `from` is not the most obvious thing, in general. I found it quite
@@ -71,6 +79,8 @@ instance Generic (MyType a) where
     ]
 -}
 
+-- | A class for generic representations of types supporting
+-- staged generic operations.
 class GGeneric (f :: (Type -> Type) -> Type -> Type) where
   gto :: Quote q => f (Code q) x -> q Exp
 
