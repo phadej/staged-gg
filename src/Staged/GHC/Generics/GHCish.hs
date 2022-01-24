@@ -1,28 +1,30 @@
-{-# language AllowAmbiguousTypes #-}
-{-# language DataKinds #-}
-{-# language EmptyCase #-}
-{-# language FlexibleContexts #-}
-{-# language FlexibleInstances #-}
-{-# language KindSignatures #-}
-{-# language PolyKinds #-}
-{-# language ScopedTypeVariables #-}
-{-# language StandaloneKindSignatures #-}
-{-# language TemplateHaskellQuotes #-}
-{-# language TypeApplications #-}
-{-# language TypeFamilies #-}
-{-# language TypeOperators #-}
+{-# LANGUAGE AllowAmbiguousTypes      #-}
+{-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE EmptyCase                #-}
+{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleInstances        #-}
+{-# LANGUAGE KindSignatures           #-}
+{-# LANGUAGE PolyKinds                #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TemplateHaskellQuotes    #-}
+{-# LANGUAGE TypeApplications         #-}
+{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE TypeOperators            #-}
 
 module Staged.GHC.Generics.GHCish
   ( ghcGenericTo
   , ghcGenericFrom
   ) where
 
+import Data.Functor.Const         (Const (..))
+import Data.Kind                  (Constraint, Type)
+import Language.Haskell.TH.Lib    (caseE, conE, conP, match, normalB, varE, varP)
+import Language.Haskell.TH.Syntax (Exp, Match, Name, mkNameG_d, newName, unTypeCode, unsafeCodeCoerce)
+
+import qualified GHC.Generics as GHC
+
 import Staged.GHC.Generics.Types
-import qualified GHC.Generics as G
-import Language.Haskell.TH.Syntax hiding (Type)
-import Language.Haskell.TH.Lib
-import Data.Kind (Type, Constraint)
-import Data.Bifunctor (first)
 
 -- A proxy type for GHC.Generics functions
 data Prox (d :: Meta) (f :: j -> Type) (a :: j) = Prox
@@ -31,7 +33,7 @@ toProx :: forall j (q :: Type -> Type) i (d :: Meta) (f :: (Type -> Type) -> j -
 toProx _ = Prox
 
 -- | Use GHC generics to implement the 'to' method.
-ghcGenericTo :: (Rep a ~ Translate (G.Rep a), G.Generic a, GGeneric (Rep a), Quote q)
+ghcGenericTo :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
   => Rep a (Code q) x -> Code q a
 ghcGenericTo = unsafeCodeCoerce . gto
 
@@ -60,7 +62,7 @@ instance Generic (MyType a) where
 -}
 
 -- | Use GHC generics to implement the 'from' method.
-ghcGenericFrom :: (Rep a ~ Translate (G.Rep a), G.Generic a, GGeneric (Rep a), Quote q)
+ghcGenericFrom :: (Rep a ~ Translate (GHC.Rep a), GHC.Generic a, GGeneric (Rep a), Quote q)
   => Code q a -> (Rep a (Code q) x -> Code q r) -> Code q r
 ghcGenericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
 
@@ -99,25 +101,37 @@ instance (GGenericCon f, GGenericCon g) => GGenericCon (f :++: g) where
 
   gmatchesCon namer k = gmatchesCon @f namer (k . L2) . gmatchesCon @g namer (k . R2)
 
-type GNumFields :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
-class GNumFields (f :: (Type -> Type) -> k -> Type) where
-  gnumFields :: Int
-instance (GNumFields f, GNumFields g) => GNumFields (f :**: g) where
-  gnumFields = gnumFields @f + gnumFields @g
-instance GNumFields U2 where
-  gnumFields = 0
-instance GNumFields (S2 c f) where
-  gnumFields = 1
+type GMakeNames :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
+class GMakeNames (f :: (Type -> Type) -> k -> Type) where
+    makeNames :: Quote q => Int -> q (f (Const Name) x, [Name], Int)
 
-instance (Constructor c, GGenericFields f, GNumFields f) => GGenericCon (C2 c f) where
+instance (GMakeNames f, GMakeNames g) => GMakeNames (f :**: g) where
+    makeNames n = do
+        (l, l', m) <- makeNames n
+        (r, r', p) <- makeNames m
+        return (l :**: r, l' ++ r', p)
+
+instance GMakeNames U2 where
+    makeNames n = return (U2, [], n)
+
+instance GMakeNames f => GMakeNames (M2 i c f) where
+    makeNames n = do
+        (x, x', m) <- makeNames n
+        return (M2 x, x', m)
+
+instance GMakeNames (K2 c) where
+    makeNames n = do
+        name <- newName ("v" ++ show n)
+        return (K2 (Const name), [name], n + 1)
+
+instance (Constructor c, GGenericFields f, GMakeNames f) => GGenericCon (C2 c f) where
   gtoCon namer m@(M2 fqp) = gtoFields (conE conN) fqp
     where
       conN :: Name
       conN = namer (conName (toProx m))
   gmatchesCon namer k rest = [do
-    let name_bases = ["v" ++ show n | n <- [1..gnumFields @f]]
-    names <- traverse newName name_bases
-    match (conP conN (map varP names)) (normalB . unTypeCode . k . M2 $ fst (grebuild names)) []
+    (names, names', _) <- makeNames 0
+    match (conP conN (map varP names')) (normalB . unTypeCode . k . M2 $ grebuild names) []
     ] ++ rest
     where
       conN :: Name
@@ -125,25 +139,20 @@ instance (Constructor c, GGenericFields f, GNumFields f) => GGenericCon (C2 c f)
 
 class GGenericFields f where
   gtoFields :: Quote q => q Exp -> f (Code q) x -> q Exp
-  grebuild :: Quote q => [Name] -> (f (Code q) x, [Name])
+  grebuild :: Quote q => f (Const Name) x -> f (Code q) x
 
 instance GGenericFields f => GGenericFields (S2 c f) where
   gtoFields c (M2 x) = gtoFields c x
-  grebuild = first M2 . grebuild
+  grebuild = M2 . grebuild . unM2
 
 instance GGenericFields U2 where
   gtoFields c U2 = c
-  grebuild [] = (U2, [])
-  grebuild _ = error "oopsy"
+  grebuild U2 = U2
 
 instance (GGenericFields f, GGenericFields g) => GGenericFields (f :**: g) where
   gtoFields c (x :**: y) = gtoFields (gtoFields c x) y
-  grebuild v
-    | (l, v') <- grebuild v
-    , (r, v'') <- grebuild v'
-    = (l :**: r, v'')
+  grebuild (l :**: r) = grebuild l :**: grebuild r
 
 instance GGenericFields (K2 c) where
   gtoFields c (K2 x) = [| $c $(unTypeCode x) |]
-  grebuild [] = error "Not enough names!"
-  grebuild (a : as) = (K2 (unsafeCodeCoerce (varE a)), as)
+  grebuild (K2 (Const a)) = K2 (unsafeCodeCoerce (varE a))
