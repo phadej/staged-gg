@@ -47,12 +47,12 @@ type GRep a = Translate (GHC.Rep a)
 
 -- | Use GHC generics to implement the 'Staged.GHC.Generics.to' method.
 genericTo :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
-  => Translate (GHC.Rep a) (Code q) x -> Code q a
+  => GRep a (Code q) x -> Code q a
 genericTo = unsafeCodeCoerce . gto
 
 -- | Use GHC generics to implement the 'Staged.GHC.Generics.from' method.
 genericFrom :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
-  => Code q a -> (Translate (GHC.Rep a) (Code q) x -> Code q r) -> Code q r
+  => Code q a -> (GRep a (Code q) x -> Code q r) -> Code q r
 genericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
 
 {-
