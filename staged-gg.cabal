@@ -19,7 +19,7 @@ description:
   See https://github.com/phadej/staged-gg/tree/master/staged-gg-examples
   for examples what you can do regardless.
 
-author:        Oleg Grenrus, Andres Löh
+author:        Oleg Grenrus, Andres Löh, David Feuer
 maintainer:    Oleg Grenrus <oleg.grenrus@iki.fi>
 license:       BSD-3-Clause
 license-file:  LICENSE
@@ -53,6 +53,7 @@ library
     Staged.GHC.Generics.Types
     Staged.GHC.Generics.RepTypes
     Staged.GHC.Generics.Generic
+    Staged.GHC.Generics.FakeGeneric1
 
   other-modules:
     Generics.Deriving.TH.Internal
