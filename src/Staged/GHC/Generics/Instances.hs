@@ -13,6 +13,8 @@ module Staged.GHC.Generics.Instances () where
 
 import Staged.GHC.Generics.TH
 
+import Control.Applicative
+import Control.Arrow (Kleisli)
 import Control.Exception
 import Data.Char
 import Data.Complex
@@ -129,6 +131,14 @@ deriveGeneric1 ''[]
 
 -- Other types from base:
 
+-- From Control.Applicative
+deriveGeneric ''WrappedArrow
+deriveGeneric1 ''WrappedArrow
+
+-- From Control.Arrow
+deriveGeneric ''Kleisli
+deriveGeneric1 ''Kleisli
+
 -- From Control.Exception:
 deriveGeneric ''IOException
 deriveGeneric ''ArithException
@@ -155,6 +165,7 @@ deriveGeneric ''GeneralCategory
 
 -- From Data.Complex:
 deriveGeneric ''Complex
+deriveGeneric1 ''Complex
 
 -- From Data.Data:
 deriveGeneric ''DataRep
@@ -204,6 +215,7 @@ deriveGeneric ''Data.Monoid.Sum
 deriveGeneric ''Data.Monoid.Product
 deriveGeneric ''Data.Monoid.First
 deriveGeneric ''Data.Monoid.Last
+deriveGeneric ''Data.Monoid.Ap
 deriveGeneric ''Data.Monoid.Alt
 
 deriveGeneric1 ''Data.Monoid.Dual
@@ -309,6 +321,15 @@ deriveGeneric ''GHC.Generics.DecidedStrictness
 deriveGeneric ''GHC.Generics.SourceStrictness
 deriveGeneric ''GHC.Generics.SourceUnpackedness
 deriveGeneric ''GHC.Generics.Fixity
+
+deriveGeneric1 ''GHC.Generics.K1
+deriveGeneric1 ''GHC.Generics.U1
+deriveGeneric1 ''GHC.Generics.V1
+deriveGeneric1 ''GHC.Generics.Par1
+deriveGeneric1 ''GHC.Generics.M1
+deriveGeneric1 ''(GHC.Generics.:*:)
+deriveGeneric1 ''(GHC.Generics.:+:)
+deriveGeneric1 ''(GHC.Generics.:.:)
 
 -- From GHC.IO.Buffer:
 deriveGeneric ''Buffer
