@@ -19,8 +19,11 @@
 module Staged.GHC.Generics.Generic
   ( GGeneric
   , GRep
+  , GRep1
   , genericTo
   , genericFrom
+  , genericTo1
+  , genericFrom1
   ) where
 
 import Control.Applicative        (liftA2)
@@ -34,6 +37,7 @@ import Data.Functor.Identity      (Identity (..))
 import qualified GHC.Generics as GHC
 
 import Staged.GHC.Generics.RepTypes
+import qualified Staged.GHC.Generics.FakeGeneric1 as Fake
 
 -- A proxy type for GHC.Generics functions
 data Prox (d :: Meta) (f :: j -> Type) (a :: j) = Prox
@@ -43,15 +47,25 @@ toProx _ = Prox
 
 -- | Use GHC generics to implement the 'Staged.GHC.Generics.Rep'
 -- associated type.
+type GRep :: Type -> (Type -> Type) -> Type -> Type -- (Type -> Type) -> Type -> Type
 type GRep a = Translate (GHC.Rep a)
 
+type GRep1 :: forall {k}. (k -> Type) -> (Type -> Type) -> k -> Type
+type GRep1 f = Translate (Fake.Rep1 f)
+
+-- Note: The GHC.Generic/Fake.Generic1 constraints on 'genericTo',
+-- 'genericFrom', etc., aren't actually necessary. We include them anyway to
+-- make the error messages less useless if someone tries to use them with a
+-- type that's not an instance of the appropriate class. Otherwise, the error
+-- message will just have stuck type family applications and mystery.
+
 -- | Use GHC generics to implement the 'Staged.GHC.Generics.to' method.
-genericTo :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
+genericTo :: (GHC.Generic a, GGeneric (GRep a), Quote q)
   => GRep a (Code q) x -> Code q a
 genericTo = unsafeCodeCoerce . gto
 
 -- | Use GHC generics to implement the 'Staged.GHC.Generics.from' method.
-genericFrom :: (GHC.Generic a, GGeneric (Translate (GHC.Rep a)), Quote q)
+genericFrom :: (GHC.Generic a, GGeneric (GRep a), Quote q)
   => Code q a -> (GRep a (Code q) x -> Code q r) -> Code q r
 genericFrom c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
 
@@ -79,9 +93,22 @@ instance Generic (MyType a) where
     ]
 -}
 
+-- | Use "Staged.GHC.Generic.FakeGeneric1" generics to implement the
+-- 'Staged.GHC.Generics.to1' method.
+genericTo1 :: (Fake.Generic1 f, GGeneric (GRep1 f), Quote q)
+  => GRep1 f (Code q) x -> Code q (f x)
+genericTo1 = unsafeCodeCoerce . gto
+
+-- | Use "Staged.GHC.Generic.FakeGeneric1" generics to implement the
+-- 'Staged.GHC.Generics.from1' method.
+genericFrom1 :: (Fake.Generic1 f, GGeneric (GRep1 f), Quote q)
+  => Code q (f x) -> (GRep1 f (Code q) x -> Code q r) -> Code q r
+genericFrom1 c k = unsafeCodeCoerce $ caseE (unTypeCode c) $ gmatches k
+
 -- | A class for generic representations of types supporting
 -- staged generic operations.
-class GGeneric (f :: (Type -> Type) -> Type -> Type) where
+type GGeneric :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
+class GGeneric f where
   gto :: Quote q => f (Code q) x -> q Exp
 
   -- Build the list of case branches.
@@ -99,7 +126,8 @@ instance (Datatype d, GGenericCon f) => GGeneric (D2 d f) where
   gto (M2 fqp) = gtoCon (mkNamer @d) fqp
   gmatches k = gmatchesCon (mkNamer @d) (k . M2) []
 
-class GGenericCon (f :: (Type -> Type) -> Type -> Type) where
+type GGenericCon :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
+class GGenericCon (f :: (Type -> Type) -> k -> Type) where
   gtoCon :: Quote q => (String -> Name) -> f (Code q) x -> q Exp
   -- We take a "namer" function that holds on to the package and module names
   -- for us so we can apply the constructor name and get its 'Name'.
@@ -139,6 +167,16 @@ instance GMakeNames (K2 c) where
         name <- newName ("v" ++ show n)
         return (K2 (Const name), n + 1)
 
+instance GMakeNames Par2 where
+    makeNames n = do
+        name <- newName ("v" ++ show n)
+        return (Par2 (Const name), n + 1)
+
+instance GMakeNames f => GMakeNames (f :@@: g) where
+    makeNames n = do
+        (what, howmany) <- makeNames n
+        return (App2 what, howmany)
+
 instance (Constructor c, GMakeNames f, GTraversey f) => GGenericCon (C2 c f) where
   gtoCon namer m@(M2 fqp) = gfoldyl (\f x -> f `appE` unTypeCode x) (conE conN) fqp
     where
@@ -161,6 +199,9 @@ instance (Constructor c, GMakeNames f, GTraversey f) => GGenericCon (C2 c f) whe
 -- fmap is incredibly cheap.
 class GTraversey f where
   gtraversey :: forall m q s x. Applicative m => (forall z. q z -> m (s z)) -> f q x -> m (f s x)
+
+instance GTraversey f => GTraversey (f :@@: g) where
+  gtraversey f (App2 x) = App2 <$> gtraversey f x
 
 gfoldyMap :: forall f m q x. (GTraversey f, Monoid m) => (forall z. q z -> m) -> f q x -> m
 gfoldyMap f = getConst . gtraversey (Const . f)

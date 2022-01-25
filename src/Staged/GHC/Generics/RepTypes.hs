@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE StandaloneDeriving   #-}
@@ -48,6 +49,7 @@ import GHC.Generics
 import qualified GHC.Generics as GHC
 import Language.Haskell.TH (Code, Quote)
 import GHC.TypeLits        (ErrorMessage (..), TypeError)
+import qualified Staged.GHC.Generics.FakeGeneric1 as Fake
 
 -------------------------------------------------------------------------------
 -- Combinators
@@ -59,6 +61,8 @@ deriving instance Eq (V2 q p)
 deriving instance Ord (V2 q p)
 deriving instance Show (V2 q p)
 deriving instance Read (V2 q p)
+deriving instance GHC.Generic (V2 q p)
+instance Fake.Generic1 (V2 q)
 
 data U2 (q :: Type -> Type) (p :: k) = U2
 
@@ -66,6 +70,8 @@ deriving instance Eq (U2 q p)
 deriving instance Ord (U2 q p)
 deriving instance Show (U2 q p)
 deriving instance Read (U2 q p)
+deriving instance GHC.Generic (U2 q p)
+instance Fake.Generic1 (U2 q)
 
 newtype M2 (i :: Type) (c :: Meta) (f :: (Type -> Type) -> k -> Type) (q :: Type -> Type) (p :: k)
     = M2 { unM2 :: f q p }
@@ -74,6 +80,8 @@ deriving instance Eq (f q p) => Eq (M2 i c f q p)
 deriving instance Ord (f q p) => Ord (M2 i c f q p)
 deriving instance Show (f q p) => Show (M2 i c f q p)
 deriving instance Read (f q p) => Read (M2 i c f q p)
+deriving instance GHC.Generic (M2 i c f q p)
+instance Fake.Generic1 (M2 i c f q)
 
 newtype K2 c (q :: Type -> Type) (p :: k)
     = K2 { unK2 :: q c }
@@ -82,6 +90,8 @@ deriving instance Eq (q c) => Eq (K2 c q p)
 deriving instance Ord (q c) => Ord (K2 c q p)
 deriving instance Show (q c) => Show (K2 c q p)
 deriving instance Read (q c) => Read (K2 c q p)
+deriving instance GHC.Generic (K2 c q p)
+instance Fake.Generic1 (K2 c q)
 
 infixr 5 :++:
 data ((f :: (Type -> Type) -> k -> Type) :++: (g :: (Type -> Type) -> k -> Type)) (q :: Type -> Type) (p :: k)
@@ -92,6 +102,8 @@ deriving instance (Eq (f q p), Eq (g q p)) => Eq ((f :++: g) q p)
 deriving instance (Ord (f q p), Ord (g q p)) => Ord ((f :++: g) q p)
 deriving instance (Show (f q p), Show (g q p)) => Show ((f :++: g) q p)
 deriving instance (Read (f q p), Read (g q p)) => Read ((f :++: g) q p)
+deriving instance GHC.Generic ((f :++: g) q p)
+instance Fake.Generic1 ((f :++: g) q)
 
 infixr 6 :**:
 data ((f :: (Type -> Type) -> k -> Type) :**: (g :: (Type -> Type) -> k -> Type)) (q :: Type -> Type) (p :: k)
@@ -101,6 +113,8 @@ deriving instance (Eq (f q p), Eq (g q p)) => Eq ((f :**: g) q p)
 deriving instance (Ord (f q p), Ord (g q p)) => Ord ((f :**: g) q p)
 deriving instance (Show (f q p), Show (g q p)) => Show ((f :**: g) q p)
 deriving instance (Read (f q p), Read (g q p)) => Read ((f :**: g) q p)
+deriving instance GHC.Generic ((f :**: g) q p)
+instance Fake.Generic1 ((f :**: g) q)
 
 -- https://gitlab.haskell.org/ghc/ghc/-/issues/15969#note_164233 !!!
 infixl 7 :@@:
@@ -111,6 +125,8 @@ deriving instance Eq (f q (g p)) => Eq ((f :@@: g) q p)
 deriving instance Ord (f q (g p)) => Ord ((f :@@: g) q p)
 deriving instance Show (f q (g p)) => Show ((f :@@: g) q p)
 deriving instance Read (f q (g p)) => Read ((f :@@: g) q p)
+deriving instance GHC.Generic ((f :@@: g) q p)
+instance Fake.Generic1 ((f :@@: g) q)
 
 newtype Par2 (q :: k -> Type) (p :: k)
     = Par2 { unPar2 :: q p }
@@ -119,6 +135,8 @@ deriving instance Eq (q p) => Eq (Par2 q p)
 deriving instance Ord (q p) => Ord (Par2 q p)
 deriving instance Show (q p) => Show (Par2 q p)
 deriving instance Read (q p) => Read (Par2 q p)
+deriving instance GHC.Generic (Par2 q p)
+instance Fake.Generic1 (Par2 q)
 
 -------------------------------------------------------------------------------
 -- Synonyms for convenience
@@ -138,10 +156,5 @@ type family Translate (f :: k -> Type) :: (Type -> Type) -> k -> Type where
     Translate GHC.Par1       = Par2
     Translate GHC.U1         = U2
     Translate GHC.V1         = V2
-    Translate (f GHC.:.: g)  = TranslateComp (Par2 :@@: f) g
-    Translate x              = TypeError ('Text "Translate error: " ':<>: 'ShowType x)
-
-type family TranslateComp (f :: (k -> Type) -> k1 -> Type) (g :: k2 -> k1) :: (Type -> Type) -> k -> Type where
-    TranslateComp acc (f GHC.:.: g) = TranslateComp (acc :@@: f) g
-    TranslateComp acc (GHC.Rec1 f)  = acc :@@: f
-    TranslateComp _   x             = TypeError ('Text "Translate :.: error: " ':<>: 'ShowType x)
+    Translate (f Fake.:.: g)  = Translate f :@@: g
+    Translate x               = TypeError ('Text "Translate error: " ':<>: 'ShowType x)

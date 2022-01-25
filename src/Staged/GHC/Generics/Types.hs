@@ -46,6 +46,9 @@ module Staged.GHC.Generics.Types (
     GRep,
     genericTo,
     genericFrom,
+    GRep1,
+    genericTo1,
+    genericFrom1,
     -- * TH Types
     Code, Quote,
     -- * Utilities
@@ -54,9 +57,18 @@ module Staged.GHC.Generics.Types (
 
 import Data.Kind           (Type)
 import Staged.GHC.Generics.RepTypes
-import Staged.GHC.Generics.Generic (GGeneric, genericTo, genericFrom, GRep)
+import Staged.GHC.Generics.Generic
+    ( GGeneric
+    , GRep
+    , genericTo
+    , genericFrom
+    , GRep1
+    , genericTo1
+    , genericFrom1
+    )
 
 import qualified GHC.Generics as GHC
+import qualified Staged.GHC.Generics.FakeGeneric1 as Fake
 
 -------------------------------------------------------------------------------
 -- Generic type class
@@ -78,10 +90,17 @@ class Generic (a :: Type) where
 
 class Generic1 (f :: k -> Type) where
     type Rep1 f :: (Type -> Type) -> k -> Type
-    type Rep1 f = Translate (GHC.Rep1 f)
+    type Rep1 f = GRep1 f
 
     to1   :: Quote q => Rep1 f (Code q) x -> Code q (f x)
+    default to1 :: (Rep1 f ~ GRep1 f, Fake.Generic1 f, GGeneric (Rep1 f), Quote q)
+      => Rep1 f (Code q) x -> Code q (f x)
+    to1 = genericTo1
+
     from1 :: Quote q => Code q (f x) -> (Rep1 f (Code q) x -> Code q r) -> Code q r
+    default from1 :: (Rep1 f ~ GRep1 f, Fake.Generic1 f, GGeneric (Rep1 f), Quote q)
+      => Code q (f x) -> (Rep1 f (Code q) x -> Code q r) -> Code q r
+    from1 = genericFrom1
 
 -------------------------------------------------------------------------------
 -- Example instance(s)
