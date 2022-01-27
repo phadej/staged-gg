@@ -33,6 +33,8 @@ import Data.Kind                  (Constraint, Type)
 import Language.Haskell.TH.Lib    (caseE, conE, conP, match, normalB, varE, varP, appE)
 import Language.Haskell.TH.Syntax (Exp, Match, Name, mkNameG_d, newName, unTypeCode, unsafeCodeCoerce)
 import Data.Functor.Identity      (Identity (..))
+import Control.Monad.Trans.State.Strict (StateT (..), get, put, evalStateT)
+import qualified Control.Monad.Trans.Class as Trans
 
 import qualified GHC.Generics as GHC
 
@@ -146,36 +148,31 @@ instance (GGenericCon f, GGenericCon g) => GGenericCon (f :++: g) where
 
 type GMakeNames :: forall {k}. ((Type -> Type) -> k -> Type) -> Constraint
 class GMakeNames (f :: (Type -> Type) -> k -> Type) where
-    makeNames :: Quote q => Int -> q (f (Const Name) x, Int)
+    makeNames :: Quote q => StateT Int q (f (Const Name) x)
 
 instance (GMakeNames f, GMakeNames g) => GMakeNames (f :**: g) where
-    makeNames n = do
-        (l, m) <- makeNames n
-        (r, p) <- makeNames m
-        return (l :**: r, p)
+    makeNames = liftA2 (:**:) makeNames makeNames
 
 instance GMakeNames U2 where
-    makeNames n = return (U2, n)
+    makeNames = pure U2
 
 instance GMakeNames f => GMakeNames (M2 i c f) where
-    makeNames n = do
-        (x, m) <- makeNames n
-        return (M2 x, m)
+    makeNames = M2 <$> makeNames
 
 instance GMakeNames (K2 c) where
-    makeNames n = do
-        name <- newName ("v" ++ show n)
-        return (K2 (Const name), n + 1)
+    makeNames = do
+        n <- get
+        put (n + 1)
+        Trans.lift $ (K2 . Const) <$> newName ("v" ++ show n)
 
 instance GMakeNames Par2 where
-    makeNames n = do
-        name <- newName ("v" ++ show n)
-        return (Par2 (Const name), n + 1)
+    makeNames = do
+        n <- get
+        put (n + 1)
+        Trans.lift $ (Par2 . Const) <$> newName ("v" ++ show n)
 
 instance GMakeNames f => GMakeNames (f :@@: g) where
-    makeNames n = do
-        (what, howmany) <- makeNames n
-        return (App2 what, howmany)
+    makeNames = App2 <$> makeNames
 
 instance (Constructor c, GMakeNames f, GTraversey f) => GGenericCon (C2 c f) where
   gtoCon namer m@(M2 fqp) = gfoldyl (\f x -> f `appE` unTypeCode x) (conE conN) fqp
@@ -183,7 +180,7 @@ instance (Constructor c, GMakeNames f, GTraversey f) => GGenericCon (C2 c f) whe
       conN :: Name
       conN = namer (conName (toProx m))
   gmatchesCon namer k rest = (do
-    (names, _) <- makeNames 0
+    names <- evalStateT makeNames 0
     let names' = gfoldyr (\(Const n) r -> n : r) [] names
     match (conP conN (map varP names')) (normalB . unTypeCode . k . M2 $ grebuild names) []
     ) : rest
