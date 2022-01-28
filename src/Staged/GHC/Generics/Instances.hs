@@ -53,6 +53,7 @@ import System.Console.GetOpt
 import System.IO
 import Text.Printf
 import Text.Read.Lex
+import qualified Staged.GHC.Generics.Types
 
 -- Types from the Prelude:
 
@@ -300,6 +301,7 @@ deriveGeneric ''GHC.Generics.K1
 deriveGeneric ''GHC.Generics.U1
 deriveGeneric ''GHC.Generics.V1
 deriveGeneric ''GHC.Generics.Par1
+deriveGeneric ''GHC.Generics.Rec1
 deriveGeneric ''GHC.Generics.M1
 deriveGeneric ''GHC.Generics.R
 deriveGeneric ''GHC.Generics.S
@@ -313,6 +315,25 @@ deriveGeneric ''GHC.Generics.DecidedStrictness
 deriveGeneric ''GHC.Generics.SourceStrictness
 deriveGeneric ''GHC.Generics.SourceUnpackedness
 deriveGeneric ''GHC.Generics.Fixity
+
+-- From Staged.GHC.Generics:
+deriveGeneric ''Staged.GHC.Generics.Types.K2
+deriveGeneric ''Staged.GHC.Generics.Types.U2
+deriveGeneric ''Staged.GHC.Generics.Types.V2
+deriveGeneric ''Staged.GHC.Generics.Types.Par2
+deriveGeneric ''Staged.GHC.Generics.Types.M2
+deriveGeneric ''(Staged.GHC.Generics.Types.:**:)
+deriveGeneric ''(Staged.GHC.Generics.Types.:++:)
+deriveGeneric ''(Staged.GHC.Generics.Types.:@@:)
+
+deriveGeneric1 ''Staged.GHC.Generics.Types.K2
+deriveGeneric1 ''Staged.GHC.Generics.Types.U2
+deriveGeneric1 ''Staged.GHC.Generics.Types.V2
+deriveGeneric1 ''Staged.GHC.Generics.Types.Par2
+deriveGeneric1 ''Staged.GHC.Generics.Types.M2
+deriveGeneric1 ''(Staged.GHC.Generics.Types.:**:)
+deriveGeneric1 ''(Staged.GHC.Generics.Types.:++:)
+deriveGeneric1 ''(Staged.GHC.Generics.Types.:@@:)
 
 -- From GHC.IO.Buffer:
 deriveGeneric ''Buffer
