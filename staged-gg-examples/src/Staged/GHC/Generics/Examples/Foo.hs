@@ -19,5 +19,12 @@ $(deriveGeneric ''Foo)
 data Bar f a = Bar (f a)
   deriving (GHC.Generic, GHC.Generic1)
 
+data Baz a = Baz (Maybe [Either Int a])
+  deriving (GHC.Generic, GHC.Generic1)
+
 $(deriveGeneric ''Bar)
 $(deriveGeneric1 ''Bar)
+
+-- This should work but doesn't:
+-- $(deriveGeneric ''Baz)
+-- $(deriveGeneric1 ''Baz)
