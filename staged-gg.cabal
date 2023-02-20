@@ -51,6 +51,8 @@ library
     Staged.GHC.Generics.Instances
     Staged.GHC.Generics.TH
     Staged.GHC.Generics.Types
+    Staged.GHC.Generics.RepTypes
+    Staged.GHC.Generics.Generic
 
   other-modules:
     Generics.Deriving.TH.Internal

@@ -59,6 +59,10 @@ import Text.Read.Lex
 -- there is manual instance for this
 -- deriveGeneric ''Bool
 
+-- Caution! While [a] may seem like a good type to use as an example for a
+-- mostly-hand-written or GHC.Generic-derived instance, it should not be used
+-- so (at least as of GHC 9.2.1). GHC's Rep/Rep1 produce incorrect metadata for
+-- the (:) constructor. See GHC Gitlab issue #20994.
 deriveGeneric ''[]
 deriveGeneric ''Ordering
 deriveGeneric ''Maybe

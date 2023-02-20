@@ -14,7 +14,7 @@ import Staged.GHC.Generics
 data Foo = Foo [Int] Ordering String
   deriving (GHC.Generic)
 
-$(deriveGeneric ''Foo)
+instance Generic Foo
 
 data Bar f a = Bar (f a)
   deriving (GHC.Generic, GHC.Generic1)
